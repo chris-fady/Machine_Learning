@@ -1,0 +1,96 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+
+df_train = pd.read_csv('./train.csv')
+df_test = pd.read_csv('./test.csv')
+
+#Remove empty row
+words=df_train['text'].dropna().reset_index(drop=True)
+words_test=df_test['text'].dropna().reset_index(drop=True)
+
+#Bag of words and tf-idf
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vectorizer = TfidfVectorizer(ngram_range=(7, 7),analyzer='char_wb')
+words_x=vectorizer.fit_transform(words)
+
+#
+#scaler fitted on retweets performs better
+
+retweet_x=scaler.fit_transform(np.array(df_train['retweet_count'].dropna().reset_index()))
+retweet_x=retweet_x[:,1]
+
+favorite_x=scaler.transform(np.array(df_train['favorite_count'].dropna().reset_index()))
+favorite_x=favorite_x[:,1]
+
+train_x=words_x.A
+train_x=np.c_[favorite_x,retweet_x,train_x]
+
+#
+#Scale test with the same scalers and vectorizer
+
+words_test_x=vectorizer.transform(words_test)
+print(words_test_x.shape)
+words_test_x
+
+favorite_test=scaler.transform(np.array(df_test['favorite_count'].dropna().reset_index()))
+favorite_test=favorite_test[:,1]
+
+retweet_test=scaler.transform(np.array(df_test['retweet_count'].dropna().reset_index()))
+retweet_test=retweet_test[:,1]
+
+test_x=words_test_x.A
+test_x=np.c_[favorite_test,retweet_test,test_x]
+
+#Remove empty row from target set
+party_y=df_train['party'].dropna().reset_index(drop=True)
+
+#Import and fit model
+from sklearn import linear_model
+clf=linear_model.LogisticRegression(C=35)
+clf.fit(train_x,party_y)
+
+#Test model on validation set
+from sklearn import model_selection
+from sklearn import metrics
+
+for i in [0,23,35,42,67,89]:
+    X_train, X_validation, y_train, y_validation = model_selection.train_test_split(train_x, party_y, test_size=0.5, random_state=i)
+
+    clf.fit(X_train,y_train)
+    yhat_validation = clf.predict(X_validation)
+    
+    print(metrics.accuracy_score(y_validation,yhat_validation))
+
+print("------------------------------------")
+
+
+#Apply to test set
+#refit after the validation sequence
+clf.fit(train_x,party_y)
+
+results=clf.predict(test_x)
+
+#Add missing row
+results_m=list(results)
+results_m.insert(584,np.nan)
+
+#Create as DataFrame
+results_m=pd.DataFrame(results_m)
+
+#Add Index
+results_m=results_m.reset_index()
+
+#Add correct column names
+results_m.columns=['Id','Prediction']
+
+#Export to csv
+results_m.set_index('Id').to_csv('submission.csv',sep=',',header=True,index_label=None)
+
+
+
+
+
