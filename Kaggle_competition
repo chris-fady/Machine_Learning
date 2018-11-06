@@ -2,8 +2,10 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
+#Initialize Scaler
 scaler = StandardScaler()
 
+#Adjust to the locations of the train and test sets
 df_train = pd.read_csv('./train.csv')
 df_test = pd.read_csv('./test.csv')
 
@@ -17,7 +19,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 vectorizer = TfidfVectorizer(ngram_range=(7, 7),analyzer='char_wb')
 words_x=vectorizer.fit_transform(words)
 
-#
+
 #scaler fitted on retweets performs better
 
 retweet_x=scaler.fit_transform(np.array(df_train['retweet_count'].dropna().reset_index()))
@@ -29,7 +31,7 @@ favorite_x=favorite_x[:,1]
 train_x=words_x.A
 train_x=np.c_[favorite_x,retweet_x,train_x]
 
-#
+
 #Scale test with the same scalers and vectorizer
 
 words_test_x=vectorizer.transform(words_test)
